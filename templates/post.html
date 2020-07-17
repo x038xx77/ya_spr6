@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Пост {{author}}{% endblock %}
+{% block header %}Пост автора {{author.get_full_name}}{% endblock %}
+{% block content %}
+
+
+<main role="main" class="container">
+    <div class="card mb-3 mt-1 shadow-sm">
+        <div class="card-body">
+            {% include "includes/card_author.html" with author=post.author %}
+            {% include "includes/post_item.html" with post=post %}
+            {% include "includes/comments.html" with items=comments %}
+
+        </div>
+    </div>
+</main>
+{% endblock %}
