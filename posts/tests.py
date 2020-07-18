@@ -1,5 +1,5 @@
 from django.test import TestCase, Client
-from .models import Post, User, Group, Comment
+from .models import Post, User, Group, Comment, Follow
 from django.urls import reverse
 
 
@@ -7,12 +7,17 @@ class Profile_not_authTests(TestCase):
 
     def setUp(self):
         self.client = Client()
+        self.user_to_follow = User.objects.create_user(username='test_user_to_follow', password=12345)
 
-    def test_no_auth_user_publish_post(self):
+    def test_no_auth_user_publish_post_comment(self):
         response = self.client.get('/new/', follow=True)
         self.assertRedirects(response, '/auth/login/?next=/new/')
         count = Post.objects.count()
         self.assertEqual(count, 0)
+
+        comment_not_auth = self.client.get(reverse('add_comment',
+                                                   kwargs={'username': self.user_to_follow.username, "post_id": '1'}))
+        self.assertRedirects(comment_not_auth, '/auth/login/?next=/test_user_to_follow/1/comment')
 
 
 class Profile_authTest(TestCase):
@@ -201,28 +206,25 @@ class TestFollowerSystem(TestCase):
         self.post = Post.objects.create(
             text=self.text, author=self.user_to_follow)
 
-    def test_follow(self):
-        self.client=Client()
-        self.author = User.objects.create_user(username='Author', password=12345)
-        self.reader = User.objects.create_user(username='Reader', password=12345)
-        self.post=Post.objects.create(
-            author=self.author,
-            text='text',)
-        self.client.force_login(self.reader)
-        response = self.client.get(reverse(
-            "profile_follow",
-            kwargs={
-                "username": self.author.username,
-            }
-        ), follow=True)
-        #self.assertEqual(response.context['flr_num'],1)
-        response = self.client.get(reverse(
-            "profile_unfollow",
-            kwargs={
-                "username": self.author.username,
-            }
-        ), follow=True)
-        #self.assertEqual(response.context['flr_num'], 0)
+    def test_auth_user_subscribe_unsubscribe(self):
+        self.client.post(reverse('profile_follow',
+                                           kwargs={'username': self.user_to_follow.username}
+                                           ), follow=True)
+        subscribe = Follow.objects.filter(user=self.test_user, author=self.user_to_follow)
+        self.assertEqual(subscribe.count(), 1)
+        self.client.post(reverse('profile_unfollow',
+                                 kwargs={'username': self.user_to_follow.username}
+                                 ), follow=True)
+        subscribe = Follow.objects.filter(user=self.test_user, author=self.user_to_follow)
+        self.assertEqual(subscribe.count(), 0)
+
+
+    def test_new_post_in_subscribe(self):
+        pass
+
+    def test_not_new_post_in_not_subscribe(self):
+        pass
+
 
     def test_auth_user_comment_post(self):
         self.post = Post.objects.create(author=self.test_user,
@@ -242,18 +244,6 @@ class TestFollowerSystem(TestCase):
         response = self.client.get(reverse('post', kwargs={"username": self.user_to_follow,
                                                            "post_id": '1'}))
         self.assertNotContains(response, "post with comment")
-
-    def test_no_auth_no_comment(self):
-        self.post = Post.objects.create(author=self.test_user,
-                                        text="post with image",
-                                        )
-        response = self.client.get(reverse('post', kwargs={"username": self.test_user.username,
-                                                           "post_id": self.post.id}))
-        self.assertContains(response, 'form')
-        response = self.client.get(reverse('post', kwargs={"username": self.user_not_auth.username,
-                                                           "post_id": self.post.id}))
-        self.assertEqual(response.status_code, 404)
-
 
 
 

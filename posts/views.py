@@ -112,8 +112,9 @@ def follow_index(request):
     page_number = request.GET.get('page')
     page = paginator.get_page(page_number)
     return redirect(
-        'follow.html'
-        )
+        'follow.html',
+        {'page': page, 'paginator': paginator}
+    )
 
 @login_required
 def profile_follow(request, username):
